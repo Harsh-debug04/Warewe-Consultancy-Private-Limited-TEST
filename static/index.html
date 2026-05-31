@@ -299,7 +299,6 @@
         const downloadBtn = document.getElementById('download-btn');
 
         let isAutoMode = false;
-        let ws = null;
         let currentThreadId = null;
         let currentDraft = "";
 
@@ -361,7 +360,6 @@
         function appendLog(message, type = 'info') {
             const time = new Date().toLocaleTimeString([], { hour12: false });
             const div = document.createElement('div');
-            div.className = "animate-[fadeIn_0.3s_ease-out]";
 
             let html = `<span class="text-outline mr-2">${time}</span>`;
             if (type === 'system') html += `<span class="text-on-surface-variant opacity-90">[SYSTEM] ${message}</span>`;
@@ -408,67 +406,10 @@
             ['planner', 'researcher', 'writer', 'reviewer', 'sender'].forEach(s => updateStep(s, 'pending'));
         }
 
-        function connectWebSocket() {
-            return new Promise((resolve, reject) => {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const path = window.location.pathname.endsWith("/") ? window.location.pathname : window.location.pathname + "/";
-                const wsUrl = `${protocol}//${window.location.host}${path}ws`;
-                console.log("Connecting to WebSocket:", wsUrl);
-                ws = new WebSocket(wsUrl);
-
-                ws.onopen = () => resolve();
-                ws.onerror = (e) => reject(e);
-
-                ws.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-
-                    if (data.type === 'log') {
-                        appendLog(data.message, data.log_type);
-                    } else if (data.type === 'step') {
-                        updateStep(data.node, data.status);
-                    } else if (data.type === 'draft_update') {
-                        currentDraft = data.content;
-                        previewCanvas.innerHTML = marked.parse(data.content);
-                    } else if (data.type === 'paused') {
-                        appendLog("Agent paused waiting for human approval.", "system");
-                        deployBtn.classList.add('hidden');
-                        hitlActions.classList.remove('hidden');
-                        hitlActions.classList.add('flex');
-                    } else if (data.type === 'finished') {
-                        appendLog("Agent execution completed.", "system");
-                        deployBtn.classList.remove('hidden');
-                        deployBtn.querySelector('span').innerText = "Deploy Again";
-                        hitlActions.classList.add('hidden');
-                        hitlActions.classList.remove('flex');
-
-                        // Close WS on finish to clean up, will reconnect on next deploy
-                        if(ws) ws.close();
-                    } else if (data.type === 'error') {
-                        appendLog(data.message, "error");
-                        deployBtn.classList.remove('hidden');
-                        deployBtn.querySelector('span').innerText = "Retry Deployment";
-                    }
-                };
-
-                ws.onclose = () => {
-                    appendLog("Connection closed.", "system");
-                };
-            });
-        }
-
         async function startAgent(action = "start", feedback = "") {
             const apiKey = apiKeyInput.value.trim();
             if (!apiKey) {
                 appendLog("Hey! You didn't provide an API key. We will use our own default key. For advanced models and better performance, please use your own API key.", "system");
-            }
-
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                try {
-                    await connectWebSocket();
-                } catch (e) {
-                    appendLog("Failed to connect to server at " + ws?.url + ". Please check your network or refresh the page.", "error");
-                    return;
-                }
             }
 
             if (action === "start") {
@@ -487,14 +428,70 @@
             hitlActions.classList.add('hidden');
             hitlActions.classList.remove('flex');
 
-            ws.send(JSON.stringify({
-                action: action,
-                goal: goalInput.value,
-                api_key: apiKey,
-                hitl: !isAutoMode,
-                thread_id: currentThreadId,
-                feedback: feedback
-            }));
+            try {
+                const response = await fetch('/api/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: action,
+                        goal: goalInput.value,
+                        api_key: apiKey,
+                        hitl: !isAutoMode,
+                        thread_id: currentThreadId,
+                        feedback: feedback
+                    })
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const data = JSON.parse(line);
+                            if (data.type === 'log') appendLog(data.message, data.log_type);
+                            else if (data.type === 'step') updateStep(data.node, data.status);
+                            else if (data.type === 'draft_update') {
+                                currentDraft = data.content;
+                                previewCanvas.innerHTML = marked.parse(data.content);
+                            } else if (data.type === 'paused') {
+                                appendLog("Agent paused waiting for human approval.", "system");
+                                deployBtn.classList.add('hidden');
+                                hitlActions.classList.remove('hidden');
+                                hitlActions.classList.add('flex');
+                            } else if (data.type === 'finished') {
+                                appendLog("Agent execution completed.", "system");
+                                deployBtn.classList.remove('hidden');
+                                deployBtn.querySelector('span').innerText = "Deploy Again";
+                                hitlActions.classList.add('hidden');
+                                hitlActions.classList.remove('flex');
+                            } else if (data.type === 'error') {
+                                appendLog(data.message, "error");
+                                deployBtn.classList.remove('hidden');
+                                deployBtn.querySelector('span').innerText = "Retry Deployment";
+                            }
+                        } catch (err) {
+                            console.error("Error parsing JSON line:", line, err);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                appendLog("Failed to connect to server. Please check your network or refresh the page.", "error");
+                deployBtn.classList.remove('hidden');
+                deployBtn.querySelector('span').innerText = "Retry Deployment";
+            }
         }
 
         deployBtn.addEventListener('click', () => startAgent("start"));
@@ -507,9 +504,8 @@
         rejectBtn.addEventListener('click', () => {
             const feedback = rejectFeedback.value.trim() || "User rejected the draft.";
             appendLog(`User rejected draft. Feedback: ${feedback}`, "action");
-            rejectFeedback.value = ""; // clear input
+            rejectFeedback.value = "";
 
-            // Re-render preview with thinking state
             previewCanvas.innerHTML = `
                 <div class="flex flex-col items-center justify-center h-full opacity-30 gap-4 my-20">
                     <span class="material-symbols-outlined text-[48px] animate-spin">sync</span>
