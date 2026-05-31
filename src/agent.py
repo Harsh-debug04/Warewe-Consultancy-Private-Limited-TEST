@@ -8,6 +8,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 class AgentState(TypedDict):
     goal: str
+    api_key: str  # Store API key in state to avoid global env vars
     search_queries: List[str]
     search_results: str
     draft: str
@@ -22,11 +23,11 @@ class ReviewResult(BaseModel):
     critique: str = Field(description="Constructive critique of the draft. Empty if approved.")
     approved: bool = Field(description="True if the draft meets the goal and quality standards, False otherwise.")
 
-def get_llm(temperature: float = 0):
-    return ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=temperature)
+def get_llm(state: AgentState, temperature: float = 0):
+    return ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=temperature, api_key=state["api_key"])
 
 def planner(state: AgentState):
-    llm = get_llm()
+    llm = get_llm(state)
     system_msg = SystemMessage(content="You are a planning assistant. Break down the user's goal into 2-3 specific search queries to find the most relevant and recent news/articles.")
     human_msg = HumanMessage(content=f"Goal: {state['goal']}")
 
@@ -51,7 +52,7 @@ def researcher(state: AgentState):
     return {"search_results": combined_results}
 
 def writer(state: AgentState):
-    llm = get_llm(temperature=0.7)
+    llm = get_llm(state, temperature=0.7)
     system_msg = SystemMessage(content="You are an expert newsletter writer. Create a clean, engaging newsletter in Markdown format based on the search results. Include a catchy title, a brief introduction, and summarize the top news items. Add a concluding remark.")
 
     prompt = f"Goal: {state['goal']}\n\nSearch Results:\n{state.get('search_results', '')}\n\nDraft the newsletter now."
@@ -69,7 +70,7 @@ def writer(state: AgentState):
     return {"draft": draft_content}
 
 def reviewer(state: AgentState):
-    llm = get_llm()
+    llm = get_llm(state)
     system_msg = SystemMessage(content="You are an editor reviewing a newsletter draft. Check if it meets the user's goal, has a good tone, and accurately summarizes the news without hallucinations. If it needs work, provide a critique and set approved to false. If it is excellent, set approved to true.")
 
     prompt = f"Goal: {state['goal']}\n\nDraft:\n{state['draft']}"
