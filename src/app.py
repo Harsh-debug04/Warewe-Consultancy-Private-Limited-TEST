@@ -31,7 +31,7 @@ async def get():
 async def api_stream(request: Request):
     payload = await request.json()
     goal = payload.get("goal", "")
-    api_key = payload.get("api_key", "") or os.environ.get("OPENAI_API_KEY", "")
+    api_key = payload.get("api_key", "") or os.environ.get("GEMINI_API_KEY", "")
     hitl = payload.get("hitl", False)
     thread_id = payload.get("thread_id", "default")
     action = payload.get("action", "start")
