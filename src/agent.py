@@ -24,7 +24,7 @@ class ReviewResult(BaseModel):
     approved: bool = Field(description="True if the draft meets the goal and quality standards, False otherwise.")
 
 def get_llm(state: AgentState, temperature: float = 0):
-    return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=temperature, api_key=state["api_key"])
+    return ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=temperature, api_key=state["api_key"])
 
 def planner(state: AgentState):
     llm = get_llm(state)
@@ -61,7 +61,13 @@ def writer(state: AgentState):
 
     human_msg = HumanMessage(content=prompt)
     result = llm.invoke([system_msg, human_msg])
-    return {"draft": result.content}
+    draft_content = result.content
+    if isinstance(draft_content, list) and len(draft_content) > 0 and isinstance(draft_content[0], dict) and "text" in draft_content[0]:
+        draft_content = draft_content[0]["text"]
+    elif not isinstance(draft_content, str):
+        draft_content = str(draft_content)
+
+    return {"draft": draft_content}
 
 def reviewer(state: AgentState):
     llm = get_llm(state)
