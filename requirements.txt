@@ -1,7 +1,9 @@
 langchain
 langgraph
 langchain-openai
-streamlit
 duckduckgo-search
 beautifulsoup4
 pydantic
+fastapi
+uvicorn
+websockets

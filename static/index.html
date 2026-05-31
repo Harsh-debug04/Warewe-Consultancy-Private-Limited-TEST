@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" style="">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>AetherAgent - Dashboard Redesign</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#869397",
+                        "tertiary-container": "#e89337",
+                        "surface-container-lowest": "#0b0f10",
+                        "on-surface-variant": "#bcc9cd",
+                        "on-background": "#e0e3e5",
+                        "on-tertiary": "#4b2800",
+                        "inverse-on-surface": "#2d3133",
+                        "secondary-fixed": "#bceaf7",
+                        "on-primary-fixed": "#001f26",
+                        "on-secondary-fixed-variant": "#1e4d58",
+                        "on-primary": "#003640",
+                        "secondary-container": "#1e4d58",
+                        "on-tertiary-container": "#5b3200",
+                        "surface-dim": "#101415",
+                        "tertiary-fixed": "#ffdcbf",
+                        "tertiary-fixed-dim": "#ffb873",
+                        "on-tertiary-fixed": "#2d1600",
+                        "primary-fixed": "#acedff",
+                        "surface-container-low": "#191c1e",
+                        "primary-container": "#06b6d4",
+                        "on-primary-fixed-variant": "#004e5c",
+                        "surface-container-highest": "#323537",
+                        "on-secondary-container": "#90bcc9",
+                        "inverse-surface": "#e0e3e5",
+                        "surface-bright": "#363a3b",
+                        "surface-container-high": "#272a2c",
+                        "on-secondary-fixed": "#001f26",
+                        "background": "#101415",
+                        "on-surface": "#e0e3e5",
+                        "primary": "#4cd7f6",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-container": "#00424f",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed-variant": "#6a3b00",
+                        "primary-fixed-dim": "#4cd7f6",
+                        "surface-variant": "#323537",
+                        "error": "#ffb4ab",
+                        "secondary-fixed-dim": "#a1cedb",
+                        "inverse-primary": "#00687a",
+                        "surface": "#101415",
+                        "tertiary": "#ffb873",
+                        "surface-container": "#1d2022",
+                        "secondary": "#a1cedb",
+                        "surface-tint": "#4cd7f6",
+                        "on-secondary": "#003640",
+                        "error-container": "#93000a",
+                        "outline-variant": "#3d494c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "label-mono": ["JetBrains Mono"],
+                        "body-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "code-block": ["JetBrains Mono"],
+                        "display": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-mono": ["13px", { "lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "body-lg": ["16px", { "lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "code-block": ["14px", { "lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "display": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-md": ["20px", { "lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "500" }]
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #101415;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3d494c;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #869397;
+        }
+
+        /* Auto-expanding textarea util */
+        .auto-expand {
+            field-sizing: content;
+            min-height: 24px;
+        }
+    </style>
+</head>
+<body class="bg-surface-container-lowest text-on-background font-body-sm h-screen overflow-hidden flex flex-col antialiased selection:bg-primary-container selection:text-black">
+    <!-- TopNavBar -->
+    <nav class="bg-surface-container-lowest dark:bg-surface-container-lowest border-b border-outline-variant dark:border-outline-variant w-full top-0 z-50 shrink-0 p-4 flex justify-between items-center">
+        <h1 class="font-label-mono text-on-surface uppercase tracking-wider">AetherAgent</h1>
+        <div class="flex items-center gap-4">
+            <input type="password" id="api-key" placeholder="OpenAI API Key" class="bg-surface border border-outline-variant rounded p-1 text-on-surface font-label-mono text-sm focus:border-primary focus:outline-none">
+        </div>
+    </nav>
+
+    <!-- Main Workspace Area -->
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Dashboard Layout: 3 Columns -->
+        <main class="flex-1 flex flex-col md:flex-row overflow-hidden bg-background">
+
+            <!-- Column 1: Command (Left Panel) -->
+            <section class="w-full md:w-1/4 min-w-[280px] max-w-[400px] flex flex-col border-r border-outline-variant shrink-0 bg-surface-container-lowest">
+                <div class="p-6 flex-1 flex flex-col">
+                    <header class="mb-8">
+                        <h2 class="font-label-mono text-label-mono text-on-surface uppercase tracking-wider mb-2">Command Interface</h2>
+                        <div class="h-[1px] w-full bg-outline-variant"></div>
+                    </header>
+                    <div class="flex-1 flex flex-col">
+                        <label class="font-body-sm text-body-sm text-on-surface-variant mb-4" for="goal-input">Goal</label>
+                        <textarea class="w-full bg-transparent border-0 border-b border-outline-variant focus:ring-0 focus:border-primary p-0 pb-2 text-on-surface font-body-lg text-body-lg resize-none auto-expand focus:outline-none placeholder-outline" id="goal-input" placeholder="Enter objective...">Create a weekly newsletter on latest AI agent news and send it to our subscribers.</textarea>
+
+                        <div class="mt-auto pt-8 flex flex-col gap-6">
+                            <!-- Toggle -->
+                            <div class="flex items-center justify-between">
+                                <span class="font-label-mono text-label-mono text-on-surface-variant uppercase">Mode</span>
+                                <div class="flex items-center gap-3">
+                                    <span class="font-label-mono text-[11px] tracking-wider text-on-surface-variant" id="mode-hitl-label">HITL</span>
+                                    <button id="mode-toggle" class="w-10 h-5 bg-surface border border-outline-variant rounded-full relative transition-colors duration-300 focus:outline-none group hover:border-primary border-primary-container bg-primary-container">
+                                        <div id="mode-toggle-thumb" class="w-3 h-3 bg-black rounded-full absolute top-[3px] left-[3px] transition-transform duration-300 pointer-events-none translate-x-5"></div>
+                                    </button>
+                                    <span class="font-label-mono text-[11px] tracking-wider text-primary" id="mode-auto-label">AUTO</span>
+                                </div>
+                            </div>
+
+                            <!-- HITL Actions (Hidden by default) -->
+                            <div id="hitl-actions" class="hidden flex-col gap-3">
+                                <div class="text-xs text-tertiary-container font-label-mono mb-2">Agent Paused: Awaiting Review</div>
+                                <button id="approve-btn" class="w-full bg-secondary-container text-on-secondary-container font-label-mono text-label-mono uppercase py-2 rounded-[4px] hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined text-[18px]">check</span> Approve & Send
+                                </button>
+                                <div class="flex flex-col gap-2">
+                                    <input type="text" id="reject-feedback" placeholder="Reason for rewrite..." class="bg-surface border border-outline-variant rounded p-2 text-on-surface font-body-sm focus:border-error focus:outline-none w-full">
+                                    <button id="reject-btn" class="w-full bg-error-container text-on-error-container font-label-mono text-label-mono uppercase py-2 rounded-[4px] hover:bg-opacity-80 transition-colors flex items-center justify-center gap-2">
+                                        <span class="material-symbols-outlined text-[18px]">close</span> Reject & Rewrite
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Deploy Button -->
+                            <button id="deploy-btn" class="w-full bg-primary-container text-[#000000] font-label-mono text-label-mono uppercase py-3 rounded-[4px] hover:bg-primary transition-colors flex items-center justify-center gap-2 group">
+                                <span>Deploy Agent</span>
+                                <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Column 2: Agent Brain (Center Panel) -->
+            <section class="w-full md:w-[40%] flex flex-col border-r border-outline-variant shrink-0 bg-surface-dim">
+                <div class="flex flex-col h-full">
+                    <!-- Steps Top -->
+                    <div class="p-6 border-b border-outline-variant shrink-0">
+                        <h2 class="font-label-mono text-label-mono text-on-surface uppercase tracking-wider mb-6">Execution State</h2>
+                        <div class="flex flex-col gap-4" id="execution-steps">
+                            <!-- Steps will be populated here -->
+                            <div class="flex items-center gap-3 opacity-50" id="step-planner">
+                                <div class="w-2 h-2 rounded-full border border-outline-variant step-dot"></div>
+                                <span class="font-body-sm text-body-sm text-on-surface-variant">Planning</span>
+                            </div>
+                            <div class="flex items-center gap-3 opacity-50" id="step-researcher">
+                                <div class="w-2 h-2 rounded-full border border-outline-variant step-dot"></div>
+                                <span class="font-body-sm text-body-sm text-on-surface-variant">Researching</span>
+                            </div>
+                            <div class="flex items-center gap-3 opacity-50" id="step-writer">
+                                <div class="w-2 h-2 rounded-full border border-outline-variant step-dot"></div>
+                                <span class="font-body-sm text-body-sm text-on-surface-variant">Drafting Content</span>
+                            </div>
+                            <div class="flex items-center gap-3 opacity-50" id="step-reviewer">
+                                <div class="w-2 h-2 rounded-full border border-outline-variant step-dot"></div>
+                                <span class="font-body-sm text-body-sm text-on-surface-variant">Review</span>
+                            </div>
+                            <div class="flex items-center gap-3 opacity-50" id="step-sender">
+                                <div class="w-2 h-2 rounded-full border border-outline-variant step-dot"></div>
+                                <span class="font-body-sm text-body-sm text-on-surface-variant">Sending</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Log Viewer -->
+                    <div id="log-viewer" class="flex-1 overflow-y-auto p-6 bg-surface-container-lowest font-code-block text-code-block custom-scrollbar flex flex-col gap-3">
+                        <div class="text-on-surface-variant">[SYSTEM] Ready.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Column 3: Preview (Right Panel) -->
+            <section class="flex-1 flex flex-col bg-surface-container-low min-w-[320px]">
+                <header class="h-[60px] border-b border-outline-variant px-6 flex items-center justify-between shrink-0 bg-surface">
+                    <h2 class="font-label-mono text-label-mono text-on-surface uppercase tracking-wider">Output Preview</h2>
+                </header>
+                <div class="flex-1 p-8 md:p-12 overflow-y-auto custom-scrollbar flex justify-center">
+                    <!-- The Document Canvas -->
+                    <div id="preview-canvas" class="w-full max-w-[600px] flex flex-col gap-8 text-on-background markdown-body prose prose-invert prose-sm md:prose-base prose-p:text-on-background prose-headings:text-on-surface prose-a:text-primary">
+                        <p class="text-outline italic">Draft will appear here...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Setup marked.js options
+        marked.setOptions({
+            breaks: true,
+            gfm: true
+        });
+
+        // UI Elements
+        const toggleBtn = document.getElementById('mode-toggle');
+        const toggleThumb = document.getElementById('mode-toggle-thumb');
+        const autoLabel = document.getElementById('mode-auto-label');
+        const hitlLabel = document.getElementById('mode-hitl-label');
+        const deployBtn = document.getElementById('deploy-btn');
+        const hitlActions = document.getElementById('hitl-actions');
+        const approveBtn = document.getElementById('approve-btn');
+        const rejectBtn = document.getElementById('reject-btn');
+        const rejectFeedback = document.getElementById('reject-feedback');
+        const goalInput = document.getElementById('goal-input');
+        const apiKeyInput = document.getElementById('api-key');
+        const logViewer = document.getElementById('log-viewer');
+        const previewCanvas = document.getElementById('preview-canvas');
+
+        // State
+        let isAutoMode = true;
+        let ws = null;
+        let currentThreadId = null;
+
+        // Toggle Logic
+        toggleBtn.addEventListener('click', () => {
+            isAutoMode = !isAutoMode;
+            if (isAutoMode) {
+                toggleBtn.classList.add('bg-primary-container', 'border-primary-container');
+                toggleBtn.classList.remove('bg-surface');
+                toggleThumb.classList.add('translate-x-5', 'bg-black');
+                toggleThumb.classList.remove('bg-on-surface-variant');
+                autoLabel.classList.add('text-primary');
+                autoLabel.classList.remove('text-on-surface-variant');
+            } else {
+                toggleBtn.classList.remove('bg-primary-container', 'border-primary-container');
+                toggleBtn.classList.add('bg-surface');
+                toggleThumb.classList.remove('translate-x-5', 'bg-black');
+                toggleThumb.classList.add('bg-on-surface-variant');
+                autoLabel.classList.remove('text-primary');
+                autoLabel.classList.add('text-on-surface-variant');
+            }
+        });
+
+        function appendLog(message, type = 'info') {
+            const time = new Date().toLocaleTimeString([], { hour12: false });
+            const div = document.createElement('div');
+
+            let html = `<span class="text-outline">${time}</span> `;
+            if (type === 'system') html += `<span class="text-on-surface-variant">[SYSTEM] ${message}</span>`;
+            else if (type === 'action') html += `<span class="text-on-surface">[ACTION] ${message}</span>`;
+            else if (type === 'tool') html += `<span class="text-on-surface-variant">[Tool Use] <span class="text-secondary">${message}</span></span>`;
+            else if (type === 'reflection') html += `<span class="text-on-surface-variant">[Reflection] <span class="text-tertiary-container">${message}</span></span>`;
+            else if (type === 'error') html += `<span class="text-error">[ERROR] ${message}</span>`;
+            else html += `<span class="text-on-surface-variant">${message}</span>`;
+
+            div.innerHTML = html;
+            logViewer.appendChild(div);
+            logViewer.scrollTop = logViewer.scrollHeight;
+        }
+
+        function updateStep(stepName, status) {
+            const stepEl = document.getElementById(`step-${stepName}`);
+            if (!stepEl) return;
+
+            const dot = stepEl.querySelector('.step-dot');
+            const text = stepEl.querySelector('span');
+
+            // Reset
+            stepEl.classList.remove('opacity-50');
+            dot.className = 'w-2 h-2 rounded-full step-dot border border-outline-variant';
+            text.className = 'font-body-sm text-body-sm text-on-surface-variant';
+
+            // Remove any IN PROGRESS span
+            const existingProgress = stepEl.querySelector('.text-primary.ml-auto');
+            if (existingProgress) existingProgress.remove();
+
+            if (status === 'active') {
+                dot.className = 'w-2 h-2 rounded-full step-dot bg-primary shadow-[0_0_8px_rgba(6,182,212,0.4)]';
+                text.className = 'font-body-sm text-body-sm text-on-surface font-medium';
+                const progressSpan = document.createElement('span');
+                progressSpan.className = 'font-label-mono text-[11px] text-primary ml-auto';
+                progressSpan.innerText = 'IN PROGRESS';
+                stepEl.appendChild(progressSpan);
+            } else if (status === 'done') {
+                dot.className = 'w-2 h-2 rounded-full step-dot bg-outline-variant';
+            } else {
+                stepEl.classList.add('opacity-50');
+            }
+        }
+
+        function resetSteps() {
+            ['planner', 'researcher', 'writer', 'reviewer', 'sender'].forEach(s => updateStep(s, 'pending'));
+        }
+
+        function connectWebSocket() {
+            return new Promise((resolve, reject) => {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+                ws.onopen = () => resolve();
+                ws.onerror = (e) => reject(e);
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'log') {
+                        appendLog(data.message, data.log_type);
+                    } else if (data.type === 'step') {
+                        updateStep(data.node, data.status);
+                    } else if (data.type === 'draft_update') {
+                        previewCanvas.innerHTML = marked.parse(data.content);
+                    } else if (data.type === 'paused') {
+                        appendLog("Agent paused waiting for human approval.", "system");
+                        deployBtn.classList.add('hidden');
+                        hitlActions.classList.remove('hidden');
+                        hitlActions.classList.add('flex');
+                    } else if (data.type === 'finished') {
+                        appendLog("Agent execution completed.", "system");
+                        deployBtn.classList.remove('hidden');
+                        deployBtn.querySelector('span').innerText = "Deploy Again";
+                        hitlActions.classList.add('hidden');
+                        hitlActions.classList.remove('flex');
+                    } else if (data.type === 'error') {
+                        appendLog(data.message, "error");
+                        deployBtn.classList.remove('hidden');
+                    }
+                };
+
+                ws.onclose = () => {
+                    appendLog("Connection closed.", "system");
+                };
+            });
+        }
+
+        async function startAgent(action = "start", feedback = "") {
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey) {
+                appendLog("Please enter your OpenAI API Key.", "error");
+                return;
+            }
+
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                try {
+                    await connectWebSocket();
+                } catch (e) {
+                    appendLog("Failed to connect to server.", "error");
+                    return;
+                }
+            }
+
+            if (action === "start") {
+                logViewer.innerHTML = '';
+                resetSteps();
+                previewCanvas.innerHTML = '<p class="text-outline italic">Draft will appear here...</p>';
+                currentThreadId = 'thread-' + Math.random().toString(36).substr(2, 9);
+            }
+
+            deployBtn.classList.add('hidden');
+            hitlActions.classList.add('hidden');
+            hitlActions.classList.remove('flex');
+
+            ws.send(JSON.stringify({
+                action: action,
+                goal: goalInput.value,
+                api_key: apiKey,
+                hitl: !isAutoMode,
+                thread_id: currentThreadId,
+                feedback: feedback
+            }));
+        }
+
+        deployBtn.addEventListener('click', () => startAgent("start"));
+
+        approveBtn.addEventListener('click', () => {
+            appendLog("User approved draft. Resuming...", "action");
+            startAgent("approve");
+        });
+
+        rejectBtn.addEventListener('click', () => {
+            const feedback = rejectFeedback.value.trim() || "User rejected the draft.";
+            appendLog(`User rejected draft. Feedback: ${feedback}`, "action");
+            startAgent("reject", feedback);
+        });
+
+    </script>
+</body>
+</html>
