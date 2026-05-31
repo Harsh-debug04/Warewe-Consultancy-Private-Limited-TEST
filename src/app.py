@@ -1,3 +1,4 @@
+import os
 import json
 import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -24,7 +25,7 @@ async def get():
 
 async def stream_agent(websocket: WebSocket, payload: dict):
     goal = payload.get("goal", "")
-    api_key = payload.get("api_key", "")
+    api_key = payload.get("api_key", "") or os.environ.get("OPENAI_API_KEY", "")
     hitl = payload.get("hitl", False)
     thread_id = payload.get("thread_id", "default")
     action = payload.get("action", "start")

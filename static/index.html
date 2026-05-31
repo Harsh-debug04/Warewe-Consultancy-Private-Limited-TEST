@@ -375,10 +375,7 @@
 
         async function startAgent(action = "start", feedback = "") {
             const apiKey = apiKeyInput.value.trim();
-            if (!apiKey) {
-                appendLog("Please enter your OpenAI API Key.", "error");
-                return;
-            }
+            // Removed local validation to allow backend fallback
 
             if (!ws || ws.readyState !== WebSocket.OPEN) {
                 try {
