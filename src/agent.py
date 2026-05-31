@@ -1,6 +1,6 @@
 from typing import TypedDict, List
 from pydantic import BaseModel, Field
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from duckduckgo_search import DDGS
 from langgraph.graph import StateGraph, END
@@ -24,7 +24,7 @@ class ReviewResult(BaseModel):
     approved: bool = Field(description="True if the draft meets the goal and quality standards, False otherwise.")
 
 def get_llm(state: AgentState, temperature: float = 0):
-    return ChatOpenAI(model="gpt-4o-mini", temperature=temperature, api_key=state["api_key"])
+    return ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=temperature, api_key=state["api_key"])
 
 def planner(state: AgentState):
     llm = get_llm(state)
