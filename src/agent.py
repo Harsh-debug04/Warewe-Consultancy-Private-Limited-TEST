@@ -24,7 +24,7 @@ class ReviewResult(BaseModel):
     approved: bool = Field(description="True if the draft meets the goal and quality standards, False otherwise.")
 
 def get_llm(state: AgentState, temperature: float = 0):
-    return ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=temperature, api_key=state["api_key"])
+    return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=temperature, api_key=state["api_key"])
 
 def planner(state: AgentState):
     llm = get_llm(state)
