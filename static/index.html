@@ -126,7 +126,17 @@
             <span class="material-symbols-outlined text-primary">auto_awesome</span>
             <h1 class="font-label-mono text-on-surface uppercase tracking-wider font-semibold">AetherAgent</h1>
         </div>
+        <div class="flex items-center gap-4 relative group">
+            <span class="material-symbols-outlined text-on-surface-variant text-[20px]">vpn_key</span>
+            <input type="password" id="api-key" placeholder="Gemini API Key (Optional)"
+                   class="bg-surface-container border border-outline-variant rounded p-1.5 px-3 text-on-surface font-label-mono text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all w-64 shadow-inner"
+                   title="If left blank, the server's default key will be used.">
 
+            <!-- Tooltip -->
+            <div class="absolute right-0 top-12 w-64 p-3 bg-surface-container-high border border-outline-variant rounded shadow-xl text-xs text-on-surface-variant opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                Leave blank to use the server's default API key, or provide your own for more advanced models and higher rate limits.
+            </div>
+        </div>
     </nav>
 
     <!-- Main Workspace Area -->
@@ -281,6 +291,7 @@
         const rejectBtn = document.getElementById('reject-btn');
         const rejectFeedback = document.getElementById('reject-feedback');
         const goalInput = document.getElementById('goal-input');
+        const apiKeyInput = document.getElementById('api-key');
         const logViewer = document.getElementById('log-viewer');
         const clearLogsBtn = document.getElementById('clear-logs');
         const previewCanvas = document.getElementById('preview-canvas');
@@ -396,6 +407,11 @@
         }
 
         async function startAgent(action = "start", feedback = "") {
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey) {
+                appendLog("Hey! You didn't provide an API key. We will use our own default key. For advanced models and better performance, please use your own API key.", "system");
+            }
+
             if (action === "start") {
                 logViewer.innerHTML = '';
                 resetSteps();
@@ -419,6 +435,7 @@
                     body: JSON.stringify({
                         action: action,
                         goal: goalInput.value,
+                        api_key: apiKey,
                         hitl: !isAutoMode,
                         thread_id: currentThreadId,
                         feedback: feedback
