@@ -1,152 +1,118 @@
-import streamlit as st
-import os
-import uuid
-from agent import build_graph
+import json
+import asyncio
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from src.agent import graph
 
-# Configure Streamlit page
-st.set_page_config(page_title="AI Newsletter Agent", page_icon="📰", layout="wide")
+app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Initialize session state for thread_id if not exists
-if "thread_id" not in st.session_state:
-    st.session_state.thread_id = str(uuid.uuid4())
-if "agent_running" not in st.session_state:
-    st.session_state.agent_running = False
+@app.get("/")
+async def get():
+    with open("static/index.html", "r") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
 
-st.title("📰 Autonomous AI Newsletter Agent")
-st.markdown("Generate a weekly newsletter on any topic using multi-step reasoning, research, and writing.")
+async def stream_agent(websocket: WebSocket, payload: dict):
+    goal = payload.get("goal", "")
+    api_key = payload.get("api_key", "")
+    hitl = payload.get("hitl", False)
+    thread_id = payload.get("thread_id", "default")
+    action = payload.get("action", "start")
+    feedback = payload.get("feedback", "")
 
-# Sidebar Configuration
-with st.sidebar:
-    st.header("Configuration")
-    api_key = st.text_input("OpenAI API Key", type="password")
+    config = {"configurable": {"thread_id": thread_id}}
 
-    if api_key:
-        os.environ["OPENAI_API_KEY"] = api_key
+    async def process_stream(initial_or_none):
+        for event in graph.stream(initial_or_none, config):
+            for node_name, state_update in event.items():
+                await websocket.send_json({"type": "step", "node": node_name, "status": "active"})
 
-    mode = st.radio("Operation Mode", ["Fully Autonomous", "Human-in-the-Loop (HITL)"])
-    hitl_enabled = mode == "Human-in-the-Loop (HITL)"
+                if node_name == "planner":
+                    queries = state_update.get('search_queries', [])
+                    await websocket.send_json({"type": "log", "log_type": "action", "message": f"Generated search queries: {queries}"})
+                elif node_name == "researcher":
+                    await websocket.send_json({"type": "log", "log_type": "tool", "message": f"SearchEngine retrieved results."})
+                elif node_name == "writer":
+                    draft = state_update.get("draft", "")
+                    await websocket.send_json({"type": "log", "log_type": "action", "message": "Drafting newsletter content..."})
+                    await websocket.send_json({"type": "draft_update", "content": draft})
+                elif node_name == "reviewer":
+                    approved = state_update.get("approved", False)
+                    critique = state_update.get("critique", "")
+                    if approved:
+                        await websocket.send_json({"type": "log", "log_type": "reflection", "message": "Draft passed review."})
+                    else:
+                        await websocket.send_json({"type": "log", "log_type": "reflection", "message": f"Draft needs revision. Critique: {critique}"})
+                elif node_name == "sender":
+                     await websocket.send_json({"type": "log", "log_type": "action", "message": "Sending finalized newsletter."})
+                     await websocket.send_json({"type": "step", "node": node_name, "status": "done"})
 
-    st.markdown("---")
-    st.markdown("**How it works:**")
-    st.markdown("1. **Planner**: Breaks down your goal into search queries.")
-    st.markdown("2. **Researcher**: Searches DuckDuckGo for latest news.")
-    st.markdown("3. **Writer**: Drafts the newsletter.")
-    st.markdown("4. **Reviewer**: Critiques the draft (loops back to Writer if needed).")
-    st.markdown("5. **Sender**: Saves the final newsletter.")
-
-# Main content
-goal = st.text_area("Newsletter Goal", value="Create a weekly newsletter on latest AI agent news and send it to our subscribers.", height=100)
-
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    if st.button("🚀 Run Agent", type="primary", use_container_width=True):
-        if not api_key:
-            st.error("Please enter your OpenAI API Key in the sidebar.")
-            st.stop()
-
-        st.session_state.agent_running = True
-        st.session_state.thread_id = str(uuid.uuid4()) # Reset thread for new run
-
-if st.session_state.agent_running:
-    # Build graph directly to interact with streams
-    graph = build_graph()
-    config = {"configurable": {"thread_id": st.session_state.thread_id}}
-
-    st.subheader("Agent Progress")
-
-    # Check if we are paused at human_approval
-    current_state = graph.get_state(config)
-
-    if current_state and current_state.next:
-        # We are paused waiting for HITL approval
-        st.warning("Agent is waiting for Human Approval.")
-        st.markdown("### Current Draft")
-        st.markdown(current_state.values.get("draft", "No draft available."))
-
-        col_app, col_rej = st.columns(2)
-        with col_app:
-            if st.button("✅ Approve and Send", use_container_width=True):
-                with st.spinner("Sending newsletter..."):
-                    if not hitl_enabled:
-                         # If mode switched mid-run
-                         pass
-                    for output in graph.stream(None, config, stream_mode="values"):
-                        pass
-                st.success("Newsletter Approved and Sent!")
-                st.session_state.agent_running = False
-                st.rerun()
-
-        with col_rej:
-            if st.button("❌ Reject and Rewrite", use_container_width=True):
-                feedback = st.text_input("Feedback for Rewrite:")
-                if feedback:
-                    # Update state manually
-                    graph.update_state(config, {"approved": False, "critique": feedback}, as_node="human_approval")
-                    with st.spinner("Rewriting..."):
-                        # We force the graph to continue. Since 'human_approval' currently routes to 'sender',
-                        # we need to ensure the graph handles rewrite logic, or we just let it restart.
-                        # For simplicity, if we update state with approved=False, we can restart from writer manually
-                        pass
-                st.warning("Rejection logic implementation is simplified. To rewrite, please clear and start over for now.")
-                st.session_state.agent_running = False
-
-    else:
-        # Run graph from start
-        initial_state = {
-            "goal": goal,
-            "search_queries": [],
-            "search_results": "",
-            "draft": "",
-            "critique": "",
-            "approved": False,
-            "final_output": ""
-        }
-
-        status_container = st.empty()
-
-        with st.spinner("Agent is working..."):
-            for event in graph.stream(initial_state, config):
-                # event is a dict with node name as key and state update as value
-                for node_name, state_update in event.items():
-                    with status_container.container():
-                        st.info(f"🟢 **Completed Node:** {node_name.capitalize()}")
-
-                        if node_name == "planner":
-                            st.write("**Search Queries:**")
-                            st.write(state_update.get("search_queries", []))
-                        elif node_name == "researcher":
-                            st.write("Found search results.")
-                            with st.expander("View Results"):
-                                st.write(state_update.get("search_results", "")[:1000] + "...")
-                        elif node_name == "writer":
-                            st.write("Drafting newsletter...")
-                        elif node_name == "reviewer":
-                            critique = state_update.get("critique", "")
-                            approved = state_update.get("approved", False)
-                            st.write(f"**Reviewer Approved:** {approved}")
-                            if not approved:
-                                st.warning(f"**Critique:** {critique}")
-                            else:
-                                st.success("Draft passed review!")
+                await asyncio.sleep(0.5)
+                await websocket.send_json({"type": "step", "node": node_name, "status": "done"})
 
         final_state = graph.get_state(config)
+        if final_state.next:
+            if hitl:
+                 await websocket.send_json({"type": "paused"})
+            else:
+                 await websocket.send_json({"type": "log", "log_type": "system", "message": "Auto mode: Skipping human approval..."})
+                 # If autonomous, we manually update state to approved so graph continues to sender
+                 graph.update_state(config, {"approved": True}, as_node="human_approval")
+                 await process_stream(None)
+        else:
+             await websocket.send_json({"type": "finished"})
 
-        if hitl_enabled and final_state.next:
-            st.rerun() # Refresh UI to show approval buttons
+    try:
+        if action == "start":
+            initial_state = {
+                "goal": goal,
+                "api_key": api_key,
+                "search_queries": [],
+                "search_results": "",
+                "draft": "",
+                "critique": "",
+                "approved": False,
+                "final_output": ""
+            }
+            await websocket.send_json({"type": "log", "log_type": "system", "message": "Initializing agent sequence..."})
+            await process_stream(initial_state)
 
-        elif not hitl_enabled and final_state.next:
-            # Continue automatically
-            with st.spinner("Continuing autonomously..."):
-                for event in graph.stream(None, config):
-                     for node_name, state_update in event.items():
-                        st.info(f"🟢 **Completed Node:** {node_name.capitalize()}")
-            final_state = graph.get_state(config)
+        elif action == "approve":
+            await websocket.send_json({"type": "log", "log_type": "system", "message": "Approval received. Continuing..."})
+            # Ensure state is set to approved so the conditional edge routes to sender
+            graph.update_state(config, {"approved": True}, as_node="human_approval")
+            await process_stream(None)
 
-        st.session_state.agent_running = False
+        elif action == "reject":
+            await websocket.send_json({"type": "log", "log_type": "system", "message": "Rejection received. Rewriting..."})
+            graph.update_state(config, {"approved": False, "critique": feedback}, as_node="human_approval")
+            # Clear UI step for writer and reviewer so they show up actively again
+            await websocket.send_json({"type": "step", "node": "writer", "status": "pending"})
+            await websocket.send_json({"type": "step", "node": "reviewer", "status": "pending"})
+            await process_stream(None)
 
-        st.markdown("---")
-        st.subheader("🎉 Final Output")
-        final_vals = final_state.values
-        st.markdown(final_vals.get("draft", ""))
-        st.success(final_vals.get("final_output", ""))
+    except Exception as e:
+        await websocket.send_json({"type": "error", "message": str(e)})
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+            payload = json.loads(data)
+            await stream_agent(websocket, payload)
+    except WebSocketDisconnect:
+        print("Client disconnected")
+    except Exception as e:
+         print(f"WS Error: {e}")
+         try:
+             await websocket.send_json({"type": "error", "message": str(e)})
+         except:
+             pass
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
